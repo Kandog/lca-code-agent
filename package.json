@@ -1,0 +1,97 @@
+{
+  "name": "lca-code-agent",
+  "displayName": "LCA Code Agent",
+  "description": "An autonomous, sandboxed coding agent for OpenAI-compatible APIs. Plans, edits, runs, and validates changes in your project with project memory and custom MCP tools. No other internet access.",
+  "version": "0.6.0",
+  "publisher": "local-dev",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "openaiAgentContainer",
+          "title": "LCA Code Agent",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "openaiAgentContainer": [
+        {
+          "type": "webview",
+          "id": "openaiAgent.chatView",
+          "name": "Chat",
+          "retainContextWhenHidden": true
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "openaiAgent.newChat",
+        "title": "LCA Code Agent: New Chat",
+        "icon": "$(add)"
+      },
+      {
+        "command": "openaiAgent.openSetupFile",
+        "title": "LCA Code Agent: Open Setup File (~/.lca/setup.json)",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "openaiAgent.showLog",
+        "title": "LCA Code Agent: Show Log",
+        "icon": "$(output)"
+      },
+      {
+        "command": "openaiAgent.openAgentsFile",
+        "title": "LCA Code Agent: Open Project Memory (AGENTS.md)",
+        "icon": "$(book)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "openaiAgent.newChat",
+          "when": "view == openaiAgent.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "openaiAgent.openAgentsFile",
+          "when": "view == openaiAgent.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "openaiAgent.openSetupFile",
+          "when": "view == openaiAgent.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "openaiAgent.showLog",
+          "when": "view == openaiAgent.chatView",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "typecheck": "tsc --noEmit -p ./",
+    "build": "npm run typecheck && node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.88.0",
+    "typescript": "^5.4.0",
+    "esbuild": "^0.28.2",
+    "@vscode/vsce": "^2.24.0"
+  }
+}

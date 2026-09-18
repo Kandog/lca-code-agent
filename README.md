@@ -19,8 +19,8 @@ tools.
 ## Install
 
 1. In VS Code: Extensions view → `...` menu → **Install from VSIX...** → select
-   `lca-code-agent-0.6.0.vsix`.
-   (Or from a terminal: `code --install-extension lca-code-agent-0.6.0.vsix`.)
+   `lca-code-agent-0.2.0.vsix`.
+   (Or from a terminal: `code --install-extension lca-code-agent-0.2.0.vsix`.)
 2. Open the project folder you want the agent to work on (**File > Open Folder...**).
    Only the *first* workspace folder is used as the sandbox root.
 3. Click the terminal icon in the Activity Bar to open the "LCA Code Agent" panel.
@@ -128,6 +128,21 @@ all work exactly the same either way. This is purely a request-format change sco
 this extension's own outgoing API calls; it doesn't persist into saved sessions, so you
 can switch it back to `"native"` at any time without affecting existing conversations.
 
+## Plan Mode / Act Mode
+
+A toggle in the toolbar next to the other buttons, the same idea as similar tools' Plan/Act
+switch: **Plan** restricts the agent to read-only exploration (`list_files`, `read_file`,
+and updating its plan with `update_plan`) — `write_file`, `replace_in_file`, `delete_file`,
+`execute_command`, and any MCP tools are not even offered to the model, so it physically
+cannot use them no matter how a request is phrased; it can only investigate and propose a
+plan, then stop and ask you to switch to **Act** to carry it out. Act is the normal full
+mode everything else in this README describes. The mode change shows up in the chat log as
+a small notice so it's clear which one is active.
+
+This is a coarser, session-level gate on top of the per-call approval prompts — useful when
+you want to review a plan before any tool has a chance to touch anything, rather than
+approving edits one at a time as they come up.
+
 ## The autonomous loop: Plan → Edit → Run → Validate → Iterate
 
 For non-trivial tasks, the agent is instructed to work through an explicit loop rather
@@ -216,15 +231,20 @@ regularly hit it.
 
 ## OS-aware commands
 
-On Windows, `execute_command` actually runs through **Git Bash** if it's installed
-(checked at `Program Files\Git\bin\bash.exe` and the usual alternate locations) — since
-Git is near-universal on Windows dev machines, this means standard Unix tools (`head`,
-`tail`, `wc`, `find`, `grep`, `cat`, `ls`, `sed`, `awk`, etc.) just work, the same as on
-macOS/Linux, instead of failing with "is not recognized." If Git Bash isn't found, it
-falls back to `cmd.exe` and the tool description/system prompt both switch to concrete
-`cmd`/PowerShell guidance instead (e.g. a one-liner for counting lines, listing files by
-extension, or searching text), so the model reaches for the right tool from the start
-either way rather than guessing wrong and only correcting after a command fails.
+On Windows, `execute_command` looks for a real POSIX shell in this order: (1) whatever
+shell your own VS Code integrated terminal is configured to default to, if it's Git Bash
+or WSL (`terminal.integrated.defaultProfile.windows`) — this is very likely why other
+tools that drive the integrated terminal directly don't hit this at all on the same
+machine; (2) common Git-for-Windows install locations
+(`Program Files\Git\bin\bash.exe` and a few alternates); (3) whatever `bash` resolves to
+on PATH at all, which also catches portable/scoop/chocolatey installs and WSL's own
+`bash.exe` shim. If any of those find a real bash, standard Unix tools (`head`, `tail`,
+`wc`, `find`, `grep`, `cat`, `ls`, `sed`, `awk`, etc.) just work, the same as on
+macOS/Linux, instead of failing with "is not recognized." Only if none of that turns up a
+shell does it fall back to `cmd.exe`, with the tool description/system prompt switching to
+concrete `cmd`/PowerShell guidance instead (e.g. a one-liner for counting lines, listing
+files by extension, or searching text) — either way the model gets accurate guidance
+about what's actually available this session, rather than a generic guess.
 
 ## Sessions
 

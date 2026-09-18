@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ChatMessage } from './openaiClient';
-import { runAgentTurn, AgentEvent, DiffPreview, PLATFORM_LABEL } from './agentLoop';
+import { runAgentTurn, AgentEvent, DiffPreview, PLATFORM_LABEL, AgentMode } from './agentLoop';
 import { getWorkspaceRoot } from './pathGuard';
 import { readSetupConfig } from './setupConfig';
 import { saveSession, listSessions, loadSession, deleteSession, SessionMeta } from './sessionManager';
@@ -73,6 +73,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private pendingApprovals = new Map<string, (v: boolean) => void>();
   private busy = false;
   private currentSessionId: string | undefined;
+  private mode: AgentMode = 'act';
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -99,6 +100,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case 'ready':
             this.pushSkillList();
             this.pushSessionList();
+            this.view?.webview.postMessage({ type: 'modeChanged', mode: this.mode });
             // If the webview's JS context was recreated (e.g. after being
             // hidden behind another view/tab and shown again), the in-memory
             // conversation is still here on the provider — replay it so the
@@ -112,6 +114,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           case 'userMessage':
             await this.handleUserMessage(msg.text);
+            break;
+          case 'setMode':
+            this.mode = msg.mode === 'plan' ? 'plan' : 'act';
+            log(`Mode switched to "${this.mode}".`);
+            this.view?.webview.postMessage({ type: 'modeChanged', mode: this.mode });
             break;
           case 'approvalResponse':
             this.resolveApproval(msg.id, msg.approved);
@@ -347,7 +354,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         (n, a, diff, opts) => this.requestApproval(n, a, diff, opts),
         notify,
         autoApprove,
-        maxAgentSteps
+        maxAgentSteps,
+        this.mode
       );
       log('Agent turn completed.');
     } catch (err: any) {
@@ -434,6 +442,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <div id="toolbar">
+    <div id="mode-toggle" title="Plan Mode: read-only, propose a plan. Act Mode: full tool access.">
+      <button id="planModeBtn" class="mode-btn">Plan</button>
+      <button id="actModeBtn" class="mode-btn active">Act</button>
+    </div>
     <button id="sessionsBtn" title="Saved sessions">Sessions</button>
     <button id="saveBtn" title="Save this session">Save</button>
     <button id="logBtn" title="Show log">Log</button>

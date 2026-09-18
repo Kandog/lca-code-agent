@@ -10,10 +10,13 @@
   const saveBtn = document.getElementById('saveBtn');
   const sessionsBtn = document.getElementById('sessionsBtn');
   const logBtn = document.getElementById('logBtn');
+  const planModeBtn = document.getElementById('planModeBtn');
+  const actModeBtn = document.getElementById('actModeBtn');
 
   let allSkills = [];
   let sessionsPanelOpen = false;
   let thinkingEl = null;
+  let currentMode = 'act';
 
   // ---------- small helpers ----------
 
@@ -356,6 +359,13 @@
   newChatBtn.addEventListener('click', () => vscode.postMessage({ type: 'newChat' }));
   saveBtn.addEventListener('click', () => vscode.postMessage({ type: 'saveSession' }));
   logBtn.addEventListener('click', () => vscode.postMessage({ type: 'showLog' }));
+  planModeBtn.addEventListener('click', () => vscode.postMessage({ type: 'setMode', mode: 'plan' }));
+  actModeBtn.addEventListener('click', () => vscode.postMessage({ type: 'setMode', mode: 'act' }));
+
+  function applyModeUI(mode) {
+    planModeBtn.classList.toggle('active', mode === 'plan');
+    actModeBtn.classList.toggle('active', mode === 'act');
+  }
   sessionsBtn.addEventListener('click', () => {
     sessionsPanelOpen = !sessionsPanelOpen;
     if (sessionsPanelOpen) {
@@ -545,6 +555,19 @@
         break;
       case 'sessionSaved':
         appendMessage('Saved', 'Session saved as "' + msg.session.title + '"', 'tool-ok');
+        break;
+      case 'modeChanged':
+        if (msg.mode !== currentMode) {
+          currentMode = msg.mode;
+          appendMessage(
+            'Mode',
+            currentMode === 'plan'
+              ? 'Switched to Plan Mode — read-only exploration, no edits/commands until you switch to Act.'
+              : 'Switched to Act Mode — full tool access is back.',
+            'mode-notice'
+          );
+        }
+        applyModeUI(msg.mode);
         break;
     }
   });

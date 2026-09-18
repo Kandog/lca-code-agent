@@ -42,6 +42,38 @@ body {
   margin-left: auto;
 }
 
+#mode-toggle {
+  display: flex;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mode-btn {
+  padding: 3px 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85em;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.mode-btn.active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-weight: 600;
+}
+
+#planModeBtn.active {
+  background-color: var(--vscode-charts-yellow);
+  color: #000;
+}
+
+.msg.mode-notice .msg-body,
+.msg.mode-notice .msg-label {
+  color: var(--vscode-charts-yellow);
+}
+
 /* ---------- sessions panel ---------- */
 
 #sessions-panel {

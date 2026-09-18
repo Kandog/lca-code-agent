@@ -2,7 +2,7 @@
   "name": "lca-code-agent",
   "displayName": "LCA Code Agent",
   "description": "An autonomous, sandboxed coding agent for OpenAI-compatible APIs. Plans, edits, runs, and validates changes in your project with project memory and custom MCP tools. No other internet access.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "local-dev",
   "engines": {
     "vscode": "^1.88.0"

@@ -158,9 +158,17 @@ const TOOL_DEFS: ToolDefinition[] = [
   },
 ];
 
+export type AgentMode = 'plan' | 'act';
+
 const READ_ONLY_TOOLS = new Set(['list_files', 'read_file', 'update_plan']);
 const DIFF_TOOLS = new Set(['write_file', 'replace_in_file']);
 const PLAN_TOOL = 'update_plan';
+
+const PLAN_MODE_REMINDER =
+  '\n\n[Plan Mode is ON: you can explore and read the codebase, and update your plan with update_plan, but ' +
+  'write_file, replace_in_file, delete_file, execute_command, and any MCP tools are not available right now, no ' +
+  'matter how the request is phrased. Investigate as needed, then present a clear plan and stop — end by asking ' +
+  'the user to switch to Act Mode if they want you to carry it out. Do not claim to have made changes.]';
 
 function normalizePlanSteps(raw: unknown): PlanStep[] {
   if (!Array.isArray(raw)) return [];
@@ -266,7 +274,8 @@ export async function runAgentTurn(
   requestApproval: ApprovalRequester,
   notify: StreamNotifier,
   autoApprove: boolean,
-  maxSteps: number = 40
+  maxSteps: number = 40,
+  mode: AgentMode = 'act'
 ): Promise<ChatMessage[]> {
   let steps = 0;
   let usedTools = false;
@@ -274,9 +283,16 @@ export async function runAgentTurn(
   const cfg = readSetupConfig();
   const promptMode = cfg.toolCallStyle === 'prompt';
   const executeCommandEnabled = cfg.executeCommandEnabled;
-  const allTools = [...TOOL_DEFS, ...getMcpToolDefinitions()].filter(
-    (t) => executeCommandEnabled || t.function.name !== 'execute_command'
-  );
+  const isPlanMode = mode === 'plan';
+
+  const allTools = [...TOOL_DEFS, ...getMcpToolDefinitions()].filter((t) => {
+    if (!executeCommandEnabled && t.function.name === 'execute_command') return false;
+    // Plan Mode: only read-only tools are even offered to the model, so it
+    // physically cannot request a file edit, a command, or an MCP tool
+    // (MCP tools are unknown/arbitrary, so treated as mutating by default).
+    if (isPlanMode && !READ_ONLY_TOOLS.has(t.function.name)) return false;
+    return true;
+  });
   // Computed once per turn since it doesn't change mid-turn; appended to the
   // system message for API calls only - never mutated into `history` itself,
   // so saved sessions/replays stay clean regardless of this setting.
@@ -285,7 +301,10 @@ export async function runAgentTurn(
   while (steps < maxSteps) {
     steps++;
 
-    const messagesForApi = withSystemAddition(history, promptInstructions + SAFETY_REMINDER);
+    const messagesForApi = withSystemAddition(
+      history,
+      promptInstructions + SAFETY_REMINDER + (isPlanMode ? PLAN_MODE_REMINDER : '')
+    );
 
     let result;
     try {
@@ -380,6 +399,15 @@ export async function runAgentTurn(
         if (name === 'execute_command' && !executeCommandEnabled) {
           const message = 'execute_command is disabled ("executeCommandEnabled": false in ~/.lca/setup.json).';
           notify({ type: 'tool_result', toolName: name, ok: false, output: `Error: ${message}` });
+          history.push({ role: 'tool', tool_call_id: call.id, name, content: `Error: ${message}` });
+          continue;
+        }
+
+        // Defense in depth for the same reason: Plan Mode filters mutating
+        // tools out of what's offered, but block a hallucinated call too.
+        if (isPlanMode && !READ_ONLY_TOOLS.has(name)) {
+          const message = 'This action is blocked in Plan Mode. Switch to Act Mode to allow file edits, commands, or MCP tools.';
+          notify({ type: 'tool_denied', toolName: name });
           history.push({ role: 'tool', tool_call_id: call.id, name, content: `Error: ${message}` });
           continue;
         }
